@@ -88,10 +88,8 @@ class Sense:
             "lidar_left": Sensor("L0", "lidar"),
             "lidar_front": Sensor("L1", "lidar"),
             "lidar_right": Sensor("L2", "lidar"),
-            #"camera": Sensor("C1", "video"),
             "bumper": Sensor("B1", "bumper"),
-            "battery": Sensor("BAT", "battery"),
-            #"gps": Sensor("GPS", "gps")
+            "battery": Sensor("BAT", "battery")
         }
 
     def perceive(self):
@@ -102,34 +100,46 @@ class Sense:
         x, y = self.robot._pos["x"], self.robot._pos["y"]
         width, height = self.environment["map_size"]
 
-        # Vérifier obstacle devant selon orientation du robot
-        # Supposons que orientation=0 → vers droite, 90 → vers le haut, etc.
-        dx, dy = 0, 0
-        if self.robot._orientation == 0:
-            dx = 1
-        elif self.robot._orientation == 180:
-            dx = -1
-        elif self.robot._orientation == 90:
-            dy = -1
-        elif self.robot._orientation == 270:
-            dy = 1
+        # Positions relatives des lidars
+        front = left = right = (x, y)
+        if self.robot._orientation == 0:  # droite
+            front = (x+1, y)
+            left  = (x, y-1)
+            right = (x, y+1)
+        elif self.robot._orientation == 180:  # gauche
+            front = (x-1, y)
+            left  = (x, y+1)
+            right = (x, y-1)
+        elif self.robot._orientation == 90:  # haut
+            front = (x, y-1)
+            left  = (x-1, y)
+            right = (x+1, y)
+        elif self.robot._orientation == 270:  # bas
+            front = (x, y+1)
+            left  = (x+1, y)
+            right = (x-1, y)
 
-        next_x = x + dx
-        next_y = y + dy
+        lidars = {}
+        obstacles = self.environment.get("obstacles", set())  # ensemble des cases obstacles
+        lidars["front"] = 0.0 if front in obstacles or front[0] > 9 or front[0] < 0 or front[1] > 9 or front[1] < 0 else 1.0
+        lidars["left"]  = 0.0 if left  in obstacles or left[0] > 9 or left[0] < 0 or left[1] > 9 or left[1] < 0 else 1.0
+        lidars["right"] = 0.0 if right in obstacles or right[0] > 9 or right[0] < 0 or right[1] > 9 or right[1] < 0 else 1.0
 
+        next_x, next_y = front
         obstacle_ahead = (
-            perception.get("lidar_front", 1.0) < 1.0 or
-            perception.get("bumper", False) or
-            next_x < 0 or next_x > width or
-            next_y < 0 or next_y > height
+            lidars["front"] == 0.0 or
+            perception.get("bumper", False)
         )
 
         perception_simple = {
             "battery": perception.get("battery", 100),
             "position": (x, y),
-            "obstacle_ahead": obstacle_ahead
+            "obstacle_ahead": obstacle_ahead,
+            "lidar_front": lidars["front"],
+            "lidar_left": lidars["left"],
+            "lidar_right": lidars["right"]
         }
-
+        #print(f"Lidars : {lidars["left"]}, {lidars["front"]}, {lidars["right"]}")
         return perception_simple
 
 

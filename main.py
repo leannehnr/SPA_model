@@ -35,11 +35,15 @@ def draw_base(pos):
     x, y = pos
     pygame.draw.rect(screen, (0, 255, 0), (x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
+def draw_obs(pos):
+    x, y = pos
+    pygame.draw.rect(screen, (100, 0, 100), (x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+
 def main():
     turtle = r.Robot("Turtle")
-    environment = {"map_size": (10,10), "recharge_zone": (0,0)}
+    environment = {"map_size": (10,10), "recharge_zone": (4,5), "obstacles": {(2, 3),(5, 5), (7, 1),(4, 8)}}
     sense = s.Sense(turtle, environment)
-    planner = p.Plan()
+    planner = p.Plan(turtle, environment)
     actuator = a.Action(turtle, environment)
 
     running = True
@@ -58,6 +62,9 @@ def main():
         screen.fill((255, 255, 255))
         draw_grid()
         draw_base(environment["recharge_zone"])
+        obstacles = environment["obstacles"]
+        for (x, y) in obstacles:
+            draw_obs((x,y))
         draw_robot(turtle)
         pygame.display.flip()
 

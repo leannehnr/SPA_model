@@ -56,39 +56,77 @@ class Action:
         self.robot._pos["y"] = max(0, min(self.environment["map_size"][1]-1, self.robot._pos["y"] + dy))
 
         # consommation batterie
-        self.robot.battery = max(0, self.robot.get_battery() - duration / 5.0)
+        self.robot.battery = max(0, self.robot.get_battery() - duration / 2.0)
         print(f"Avance {duration}s à vitesse {speed} → pos=({self.robot._pos["x"]},{self.robot._pos["y"]}), batterie={self.robot.get_battery():.1f}%")
 
     def turn_left(self, duration, speed=1.0):
         self.left_wheel_speed = -speed
         self.right_wheel_speed = speed
         self.orientation = (self.orientation + 90 * duration) % 360
-        self.robot.set_battery(max(0, self.robot.get_battery() - duration / 5.0))
+        self.robot.set_battery(max(0, self.robot.get_battery() - duration / 2.0))
         print(f"Tourne à gauche {duration}s → orientation={self.orientation}°, batterie={self.robot.get_battery():.1f}%")
 
     def turn_right(self, duration, speed=1.0):
         self.left_wheel_speed = speed
         self.right_wheel_speed = -speed
         self.orientation = (self.orientation - 90 * duration) % 360
-        self.robot.set_battery(max(0, self.robot.get_battery() - duration / 5.0))
+        self.robot.set_battery(max(0, self.robot.get_battery() - duration / 2.0))
         print(f"Tourne à gauche {duration}s → orientation={self.orientation}°, batterie={self.robot.get_battery():.1f}%")
 
     def move_to(self, target):
-        # déplacement 1 unité/sec simple
         tx, ty = target
-        while (self.robot._pos["x"], self.robot._pos["y"]) != (tx, ty) and self.robot.get_battery() > 0:
-            dx = 1 if tx > self.robot._pos["x"] else -1 if tx < self.robot._pos["x"] else 0
-            dy = 1 if ty > self.robot._pos["y"] else -1 if ty < self.robot._pos["y"] else 0
-            self.robot._pos["x"] += dx
-            self.robot._pos["y"] += dy
+        x, y = self.robot._pos["x"], self.robot._pos["y"]
 
-            # Batterie : 1% / 5 sec → durée 1 sec par pas
-            self.robot.set_battery(max(0, self.robot.get_battery() - 1.0 / 5.0))
-            print(f"Moving to {target} → pos=({self.robot._pos["x"]},{self.robot._pos["y"]}), batterie={self.robot.get_battery():.1f}%")
+        # Déterminer direction à prendre
+        dx = tx - x
+        dy = ty - y
+
+        if dx > 0:
+            desired_orientation = 0     # droite
+        elif dx < 0:
+            desired_orientation = 180   # gauche
+        elif dy > 0:
+            desired_orientation = 270   # bas
+        elif dy < 0:
+            desired_orientation = 90    # haut
+        else:
+            return  # déjà à la case cible
+
+        # Tourner si nécessaire
+        if self.robot._orientation != desired_orientation:
+            # Choisir le sens de rotation le plus court
+            diff = (desired_orientation - self.robot._orientation) % 360
+            if diff == 90 or diff == -270:
+                self.robot._orientation = (self.robot._orientation + 90) % 360
+            elif diff == 270 or diff == -90:
+                self.robot._orientation = (self.robot._orientation - 90) % 360
+            else:
+                self.robot._orientation = desired_orientation
+            return  # on tourne avant d’avancer
+
+        # Avancer d’une case dans la direction actuelle
+        if self.robot._orientation == 0:
+            self.robot._pos["x"] += 1
+        elif self.robot._orientation == 180:
+            self.robot._pos["x"] -= 1
+        elif self.robot._orientation == 90:
+            self.robot._pos["y"] -= 1
+        elif self.robot._orientation == 270:
+            self.robot._pos["y"] += 1
+
+        # Clamp pour rester dans la grille
+        width, height = self.environment["map_size"]
+        self.robot._pos["x"] = max(0, min(self.robot._pos["x"], width-1))
+        self.robot._pos["y"] = max(0, min(self.robot._pos["y"], height-1))
+
+
+        # Batterie : 1% / 5 sec → durée 1 sec par pas
+        self.robot.set_battery(max(0, self.robot.get_battery() - 1.0 / 2.0))
+        #print(f"Moving to {target} → pos=({self.robot._pos["x"]},{self.robot._pos["y"]}), batterie={self.robot.get_battery():.1f}%")
 
     def recharge(self, duration):
         # Recharge 1% / sec
-        self.robot.set_battery(min(100, self.robot.get_battery() + duration))
+        self.robot.set_battery(min(100, self.robot.get_battery() + 1))
         print(f"Recharge {duration}s → batterie={self.robot.get_battery():.1f}%")
 
 if __name__ == "__main__":
