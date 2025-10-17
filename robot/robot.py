@@ -19,11 +19,14 @@ class Robot:
         self._lenght = 0.5
         self._weight = 1.5
         self._battery = 100.0
+        self._pos = {
+            "x" : 0,
+            "y" : 0
+        }
+        self._orientation = 0
         self._wheels = {                        # from 0 to 100% speed of the wheels
             "front_right" : 0.0,
             "front_left" : 0.0,
-            #"back_right" : 0.0,
-            #"back_left" : 0.0
         }
         self._sensors = {
             "distance_array" : [0.0, 0.0, 0.0],    # left, center right
@@ -77,19 +80,3 @@ class Robot:
 if __name__ == "__main__":
     r1=Robot("Data")
     print(r1)
-
-    
-''' test set values
-    s0=s.Sensor("S0", "Lidar")
-    s1=s.Sensor("S1", "Lidar")
-    s2=s.Sensor("S2", "Lidar")
-    s0.set_range([-1.0, 0.0])
-    s1.set_range([0.0, 0.5])
-    s2.set_range([0.5, 2.0])
-    s0.set_value(-0.2)
-    s1.set_value(0.1)
-    s2.set_value(1.2)
-
-    tab = [s0, s1, s2]
-    r1.set_sensors(tab)
-'''
