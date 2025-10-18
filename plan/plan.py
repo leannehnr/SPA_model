@@ -2,6 +2,7 @@
 Planner interface
 '''
 import random
+from collections import deque
 
 class Plan:
     '''
@@ -34,7 +35,7 @@ class Plan:
         self._height = 10
         self._visited = set()
         self._env = environnement
-        self._goal = random.randint(0,9), random.randint(0,9)
+        self._goal = (random.randint(0,9),random.randint(0,9))
         self.robot = robot
 
     def __repr__(self):
@@ -63,14 +64,13 @@ class Plan:
 
         # --- 2. Choisir la prochaine case à explorer ---
         next_cell = self.find_next_cell(x, y, perception)
-        if next_cell and exploration<50:  #exploration
+        if next_cell and exploration<80:  #exploration
             self._instruction.append("move")
             return [("move_to", next_cell)]
         else:
             self._instruction.append("move")
-            print(self._goal)
             if (x,y)==self._goal or (x, y) in self._env["obstacles"]:
-                self._goal = (random.randint(0,9), random.randint(0,9))
+                self._goal = (random.randint(0,9),random.randint(0,9))
             return self.go_recharge((x,y), self._goal)
 
     def find_next_cell(self, x, y, perception):
@@ -132,8 +132,6 @@ class Plan:
             # marquer la case comme danger
 
         return move
-            
-
 
 
     def explore(self):
@@ -149,24 +147,51 @@ class Plan:
 
     def go_recharge(self, current_pos, goal):
         """
-        Retour progressif vers la charge ou une autre pos en se déplaçant uniquement
-        horizontalement ou verticalement.
+        Calcule un chemin vers la position 'goal' en évitant les obstacles.
+        Se déplace uniquement horizontalement ou verticalement (pas de diagonales).
+        Renvoie la prochaine position sûre à atteindre.
         """
-        x, y = current_pos
-        xr, yr = goal
-        if x > xr:
-            next_pos = (x - 1, y)   # avancer vers la gauche
-        elif x < xr:
-            next_pos = (x + 1, y)   # avancer vers la gauche
-        elif y > yr:
-            next_pos = (x, y - 1)   # avancer vers le haut
-        elif y < yr:
-            next_pos = (x, y + 1)   # avancer vers le haut
-        else:
-            next_pos = (xr, yr)       # déjà arrivé
-        print(next_pos)
+        width, height = self._env["map_size"]
+        obstacles = self._env.get("obstacles", set())
+        start = current_pos
 
-        return [("move_to", next_pos)]
+        # Si déjà sur place
+        if start == goal:
+            print(f"Already at {goal}")
+            return [("move_to", goal)]
+
+        # --- BFS pour trouver le chemin le plus court ---
+        queue = deque([(start, [])])
+        visited = {start}
+
+        while queue:
+            (x, y), path = queue.popleft()
+
+            # Directions : droite, gauche, bas, haut
+            for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
+                nx, ny = x + dx, y + dy
+                next_pos = (nx, ny)
+
+                # Vérification des limites et obstacles
+                if (0 <= nx < width and 0 <= ny < height
+                    and next_pos not in obstacles
+                    and next_pos not in visited):
+
+                    # Si c'est la destination
+                    if next_pos == goal:
+                        full_path = path + [next_pos]
+                        next_step = full_path[0] if full_path else goal
+                        print(f"{start} vers {next_step} (objectif {goal})")
+                        return [("move_to", next_step)]
+
+
+                    queue.append((next_pos,path + [next_pos]))
+                    visited.add(next_pos)
+
+        # Si aucun chemin trouvé, on reste en place
+        print(f"Aucun chemin trouvé vers {goal}, robot reste sur {current_pos}")
+        return [("move_to", current_pos)]
+
     
     def recharge(self, perception):
         return [("recharge", 100-perception["battery"])]

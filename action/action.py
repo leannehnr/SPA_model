@@ -76,11 +76,9 @@ class Action:
     def move_to(self, target):
         tx, ty = target
         x, y = self.robot._pos["x"], self.robot._pos["y"]
-
         # Déterminer direction à prendre
         dx = tx - x
         dy = ty - y
-
         if dx > 0:
             desired_orientation = 0     # droite
         elif dx < 0:
@@ -90,8 +88,7 @@ class Action:
         elif dy < 0:
             desired_orientation = 90    # haut
         else:
-            return  # déjà à la case cible
-
+            desired_orientation = self.robot._orientation
         # Tourner si nécessaire
         if self.robot._orientation != desired_orientation:
             # Choisir le sens de rotation le plus court
@@ -102,8 +99,6 @@ class Action:
                 self.robot._orientation = (self.robot._orientation - 90) % 360
             else:
                 self.robot._orientation = desired_orientation
-            return  # on tourne avant d’avancer
-
         # Avancer d’une case dans la direction actuelle
         if self.robot._orientation == 0:
             self.robot._pos["x"] += 1
@@ -113,16 +108,14 @@ class Action:
             self.robot._pos["y"] -= 1
         elif self.robot._orientation == 270:
             self.robot._pos["y"] += 1
-
         # Clamp pour rester dans la grille
         width, height = self.environment["map_size"]
         self.robot._pos["x"] = max(0, min(self.robot._pos["x"], width-1))
         self.robot._pos["y"] = max(0, min(self.robot._pos["y"], height-1))
 
-
         # Batterie : 1% / 5 sec → durée 1 sec par pas
         self.robot.set_battery(max(0, self.robot.get_battery() - 1.0 / 2.0))
-        #print(f"Moving to {target} → pos=({self.robot._pos["x"]},{self.robot._pos["y"]}), batterie={self.robot.get_battery():.1f}%")
+        print(f"batterie={self.robot.get_battery():.1f}%")
 
     def recharge(self, duration):
         # Recharge 1% / sec
