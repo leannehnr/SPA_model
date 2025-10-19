@@ -5,11 +5,7 @@ import random
 
 class Sensor:
     '''
-    Class that implement the sensor interface
-    Sensor Class: Create a class for the sensors. This class should include:
-
-    Attributes for different types of sensors (e.g., type, range).
-    Methods to gather data from the environment.
+    How is defined a sensor -- name / type / range / value
     '''
 
     def __init__(self, name : str, stype : str):
@@ -46,39 +42,41 @@ class Sensor:
     
     def collect_data(self, robot=None, environment=None):
         """
-        Simule la lecture d'une valeur selon le type de capteur.
-        (dans une simulation : aléatoire, ou dépend de la position du robot)
+        Only used in random simulation -- not the final one
         """
         if self._type == "lidar":
-            # Simule la détection d'obstacles : distance libre (0 à 10)
+            # obstacle between 0 and 10m in front
             value = random.uniform(0.0, 10.0)
 
         elif self._type == "video":
-            # Simule une "image" -> ici juste un identifiant d'objet visible
+            # supposed to be used w/ opencv 
             possible_objects = ["nothing", "tree", "rock", "charger"]
             value = random.choice(possible_objects)
 
         elif self._type == "depth_sensor":
-            # Simule la profondeur moyenne d'une scène
+            # exemple of sensor
             value = random.uniform(0.25, 5.0)
 
         elif self._type == "bumper":
-            # Détection de collision
+            # exemple of sensor
             value = random.choice([True, False])
 
         elif self._type == "battery":
-            # Lire la batterie du robot
+            # Read the battery level
             value = robot.get_battery() if robot else 100.0
 
         else:
-            print(f"[WARNING] Capteur {self._type} inconnu")
+            print(f"[WARNING] Sensor {self._type} unknown")
             value = None
 
         self._value = value
         return self._value
     
 class Sense:
-    """ Use of the sensors """
+    """ 
+    Use of the sensors -- perception of the sensor -- because I used only the lidar and the battery here
+    In the real world, the bumper is an emergency stop...
+    """
     def __init__(self, robot, environment):
         self.robot = robot
         self.environment = environment
@@ -100,37 +98,36 @@ class Sense:
         x, y = self.robot._pos["x"], self.robot._pos["y"]
         width, height = self.environment["map_size"]
 
-        # Positions relatives des lidars
+        # lidar positions
         front = left = right = (x, y)
-        if self.robot._orientation == 0:  # droite
+        if self.robot._orientation == 0:  # ->
             front = (x+1, y)
             left  = (x, y-1)
             right = (x, y+1)
-        elif self.robot._orientation == 180:  # gauche
+        elif self.robot._orientation == 180:  # <-
             front = (x-1, y)
             left  = (x, y+1)
             right = (x, y-1)
-        elif self.robot._orientation == 90:  # haut
+        elif self.robot._orientation == 90:  # go down 
             front = (x, y-1)
             left  = (x-1, y)
             right = (x+1, y)
-        elif self.robot._orientation == 270:  # bas
+        elif self.robot._orientation == 270:  # go up
             front = (x, y+1)
             left  = (x+1, y)
             right = (x-1, y)
 
         lidars = {}
-        obstacles = self.environment.get("obstacles", set())  # ensemble des cases obstacles
-        lidars["front"] = 0.0 if front in obstacles or front[0] > 9 or front[0] < 0 or front[1] > 9 or front[1] < 0 else 1.0
-        lidars["left"]  = 0.0 if left  in obstacles or left[0] > 9 or left[0] < 0 or left[1] > 9 or left[1] < 0 else 1.0
-        lidars["right"] = 0.0 if right in obstacles or right[0] > 9 or right[0] < 0 or right[1] > 9 or right[1] < 0 else 1.0
+        obstacles = self.environment.get("obstacles", set())  # if the case next to one of the lidar is an obstacle, set lidar to 0.0 (distance to obstacle)
+        lidars["front"] = 0.0 if front in obstacles or front[0] > width-1 or front[0] < 0 or front[1] > width-1 or front[1] < 0 else 1.0
+        lidars["left"]  = 0.0 if left  in obstacles or left[0] > width-1 or left[0] < 0 or left[1] > width-1 or left[1] < 0 else 1.0
+        lidars["right"] = 0.0 if right in obstacles or right[0] > width-1 or right[0] < 0 or right[1] > width-1 or right[1] < 0 else 1.0
 
-        next_x, next_y = front
         obstacle_ahead = (
             lidars["front"] == 0.0 or
             perception.get("bumper", False)
         )
-
+        # sending infos to plan
         perception_simple = {
             "battery": perception.get("battery", 100),
             "position": (x, y),
@@ -139,7 +136,7 @@ class Sense:
             "lidar_left": lidars["left"],
             "lidar_right": lidars["right"]
         }
-        #print(f"Lidars : {lidars["left"]}, {lidars["front"]}, {lidars["right"]}")
+
         return perception_simple
 
 

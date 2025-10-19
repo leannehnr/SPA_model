@@ -15,70 +15,69 @@ class Plan:
 
     def __init__(self, robot, environnement):
         self._action = {
-            "move_to": (0.0, 0.0),        # move forward for x seconds
-            "turn_right": 0.0,          # turn_right for x seconds
-            "turn_left": 0.0,           # turn_left
-            "slower" : 0.0,             # ralentir
-            "faster" : 0.0,
+            "move_to": (0.0, 0.0),        # move to point (x, y)
             "recharge":0.0,             # wait until battery is full
-            "collect":0.0,              # collect some reward ? 
+            "collect":0.0,              # collect some reward ? / not used
+            "move_forward" : 0.0, 
+            "turn_left" : 0.0, 
+            "turn_right" : 0.0
         }
-        self._goals = {                 # Prioritised goals (0-5)
+        self._goals = {                 # Prioritised goals (0-5) / not used but still are the goals 
             "life" : 0.0,               # first
             "exploration" : 2.0,        # second
             "finding_objects" : 5.0     # last
         }
-        self._instruction = ["move"]          # list of instructions
-        self.low_battery_threshold = 20
-        self._start_pos = (0.0, 0.0)
-        self._width = 10
-        self._height = 10
-        self._visited = set()
-        self._env = environnement
-        self._goal = (random.randint(0,9),random.randint(0,9))
+        self._instruction = [self._action["move_to"]]          # list of instructions / used as memory of actions
+        self.low_battery_threshold = 20                        # when the robot go recharge
+        self._start_pos = (0.0, 0.0)                           # starting position
+        self._env = environnement                              # for the map size / the recharge zone / obstacles (at the end of the exploration part)
+        self._width, self._height = self._env["map_size"]
+        self._visited = set()                                  # visited area
+        self._goal = (random.randint(0,self._width-1),random.randint(0,self._height-1)) # random goal positions at the end of the exploration
         self.robot = robot
 
     def __repr__(self):
-        return f"<Plan goals={self._goals}, next={self._instruction}>"
+        return f"<next={self._instruction}>"
 
 
     def decide(self, perception):
+        """
+        Decide what to do between explore, recharge and go recharge / move to random goal(same function)
+        """
         x, y = perception["position"]
         battery = perception["battery"]
         xr, yr = self._env["recharge_zone"]
 
-        # Ajouter la case actuelle aux visités
+        # Add the actual pos to the visited cases
         self._visited.add((x, y))
-        exploration = len(self._visited)/(self._width*self._height - len(self._env["obstacles"]))*100
+        exploration = len(self._visited)/(self._width*self._height - len(self._env["obstacles"]))*100       # exploration rate
         print(f"Exploration : {exploration}%")
-        # --- 1. Batterie faible ? retour à la base ---
-        if battery < self.low_battery_threshold and (x,y)!=(xr,yr):
+        # --- 1. Low battery ? go to recharge base ---
+        if battery < self.low_battery_threshold and (x,y)!=(xr,yr): # still not on the base
             self._instruction.append("move")
-            return self.go_recharge((x,y), self._env["recharge_zone"])
-        elif battery < self.low_battery_threshold and (x,y)==(xr,yr):
+            return self.go_recharge((x,y), (xr, yr))
+        elif battery < self.low_battery_threshold and (x,y)==(xr,yr):   # start recharging
             self._instruction.append("charge")
             return self.recharge(perception)
-        elif self._instruction[-1]=="charge" and battery<100:
+        elif self._instruction[-1]=="charge" and battery<100:           # charge not finished -- continue recharging
             self._instruction.append("charge")
             return self.recharge(perception)
 
-        # --- 2. Choisir la prochaine case à explorer ---
+        # --- 2. Find somewhere to go ---
         next_cell = self.find_next_cell(x, y, perception)
-        if next_cell and exploration<80:  #exploration
+        if next_cell and exploration<80:  # exploration
             self._instruction.append("move")
             return [("move_to", next_cell)]
-        else:
+        else:                             # and of the ex^ploration part -- random positions to go
             self._instruction.append("move")
-            if (x,y)==self._goal or (x, y) in self._env["obstacles"]:
+            if (x,y)==self._goal or (x, y) in self._env["obstacles"]:   # if at goal -- generate new goal
                 self._goal = (random.randint(0,9),random.randint(0,9))
-            return self.go_recharge((x,y), self._goal)
+            return self.go_recharge((x,y), self._goal)                  # find a path to the new goal
 
     def find_next_cell(self, x, y, perception):
         """
-        Stratégie :
-        - Avancer dans l'orientation actuelle si la case devant est libre et non visitée
-        - Sinon, regarder droite/gauche pour trouver une case libre et non visitée
-        - Si toutes les cases autour sont bloquées, reculer et marquer la case devant comme obstacle
+        - Know the actual position/orientation
+        - Look around, if no obstacle in front -- go straight, else turn with prioritized instructions
         """
         move = 0
         front = perception["lidar_front"]
@@ -89,54 +88,52 @@ class Plan:
         move_back = (0, 0)
         move_right = (0, 0)
 
-        if self.robot._orientation == 0:  # droite
+        if self.robot._orientation == 0:  # find where is the front give the orientation ( same in Sense ) and define the move 
             move_front = (x+1, y)
             move_left  = (x, y-1)
             move_right = (x, y+1)
             move_back = (x-1, y)
-        elif self.robot._orientation == 180:  # gauche
+        elif self.robot._orientation == 180:
             move_front = (x-1, y)
             move_left  = (x, y+1)
             move_right = (x, y-1)
             move_back = (x+1, y)
-        elif self.robot._orientation == 90:  # haut
+        elif self.robot._orientation == 90:
             move_front = (x, y-1)
             move_left  = (x-1, y)
             move_right = (x+1, y)
             move_back = (x, y+1)
-        elif self.robot._orientation == 270:  # bas
+        elif self.robot._orientation == 270:
             move_front = (x, y+1)
             move_left  = (x+1, y)
             move_right = (x-1, y)
             move_back = (x, y-1)
 
-        # Priorisier d'aller sur une case qui n'a pas été visitée plutôt qu'une case visitée
-        if front == 1.0 and move_front not in self._visited: # pas d'obstacle devant et ajouter la case devant n'a pas été visitée
+        # Always prefer to go somewhere unknown
+        if front == 1.0 and move_front not in self._visited: # nothing in front and not visited
             move = move_front
-        elif left == 1.0 and move_left not in self._visited: # si obstacle devant, mais pas à gauche et que la case n'a pas été visitée
+        elif left == 1.0 and move_left not in self._visited: # something or visited in front, turn left if left not visited and no obstacle
             move = move_left
             self.robot._orientation = (self.robot._orientation + 90) % 360
-        elif right == 1.0 and move_right not in self._visited:
+        elif right == 1.0 and move_right not in self._visited: # something or visited in front and left, turn right if right not visited and no obstacle 
             move = move_right
             self.robot._orientation = (self.robot._orientation - 90) % 360
-        elif front == 1.0:
+        elif front == 1.0:  # if all around visited but nothing in front go straight
             move = move_front
-        elif right == 1.0:
+        elif right == 1.0: # if all around visited and obstacle in front but nothing on the right go right
             move = move_right
             self.robot._orientation = (self.robot._orientation - 90) % 360
-        elif left == 1.0:
+        elif left == 1.0: # if all around visited and obstacle in front and on the right but nothing on the left go left
             move = move_left
             self.robot._orientation = (self.robot._orientation + 90) % 360
-        else : # voie sans issue --> reculer
+        else : # move back
             move = move_back
-            # marquer la case comme danger
-
         return move
 
 
     def explore(self):
         """
-        Exploration aléatoire — pour l’instant, choix d’une direction au hasard.
+        Random exploration -- not used anymore
         """
         actions = ["move_forward", "turn_left", "turn_right"]
         action = random.choice(actions)
@@ -147,9 +144,7 @@ class Plan:
 
     def go_recharge(self, current_pos, goal):
         """
-        Calcule un chemin vers la position 'goal' en évitant les obstacles.
-        Se déplace uniquement horizontalement ou verticalement (pas de diagonales).
-        Renvoie la prochaine position sûre à atteindre.
+        Compute the shortest path to the goal while do run over obstacles
         """
         width, height = self._env["map_size"]
         obstacles = self._env.get("obstacles", set())
@@ -160,24 +155,24 @@ class Plan:
             print(f"Already at {goal}")
             return [("move_to", goal)]
 
-        # --- BFS pour trouver le chemin le plus court ---
+        # --- BFS (Breadth-First Search) to find the shortest path ---
         queue = deque([(start, [])])
         visited = {start}
 
         while queue:
             (x, y), path = queue.popleft()
 
-            # Directions : droite, gauche, bas, haut
+            # Directions : right, left, up, down
             for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
                 nx, ny = x + dx, y + dy
                 next_pos = (nx, ny)
 
-                # Vérification des limites et obstacles
+                # Limits of the grid and obstacles
                 if (0 <= nx < width and 0 <= ny < height
                     and next_pos not in obstacles
                     and next_pos not in visited):
 
-                    # Si c'est la destination
+                    # If destination found
                     if next_pos == goal:
                         full_path = path + [next_pos]
                         next_step = full_path[0] if full_path else goal
@@ -188,15 +183,14 @@ class Plan:
                     queue.append((next_pos,path + [next_pos]))
                     visited.add(next_pos)
 
-        # Si aucun chemin trouvé, on reste en place
+        # if no path found -- not supposed to arrive
         print(f"Aucun chemin trouvé vers {goal}, robot reste sur {current_pos}")
         return [("move_to", current_pos)]
 
-    
+    # send the recharge instruction
     def recharge(self, perception):
         return [("recharge", 100-perception["battery"])]
 
 
 if __name__ == "__main__":
     print("Testing functions")
-

@@ -17,13 +17,16 @@ class Action:
         self.robot = robot
         self.environment = environment
         self.orientation = 0  # orientation en degrés
-        self.left_wheel_speed = 0.0   # vitesse roue gauche [0, 1]
-        self.right_wheel_speed = 0.0  # vitesse roue droite [0, 1]
+        self.left_wheel_speed = 0.0   # vitesse roue gauche [-1, 1]
+        self.right_wheel_speed = 0.0  # vitesse roue droite [-1, 1]
 
     def __repr__(self):
         pass
 
     def execute(self, instructions):
+        """
+        Read the instruction from the plan 
+        """
         for instr in instructions:
             action_type = instr[0]
 
@@ -42,8 +45,10 @@ class Action:
             elif action_type == "recharge":
                 self.recharge(duration)
             else:
-                print(f"[WARNING] Action inconnue : {action_type}")
+                print(f"[WARNING] Unknown action : {action_type}")
 
+    # Move forward, turn_left, turn_right --> only for v1 not used in final version 
+    # Could be called in move_to
     def move_forward(self, duration, speed=1.0):
         self.left_wheel_speed = speed
         self.right_wheel_speed = speed
@@ -76,7 +81,7 @@ class Action:
     def move_to(self, target):
         tx, ty = target
         x, y = self.robot._pos["x"], self.robot._pos["y"]
-        # Déterminer direction à prendre
+        # Find if the robot has to turn 
         dx = tx - x
         dy = ty - y
         if dx > 0:
@@ -89,7 +94,7 @@ class Action:
             desired_orientation = 90    # haut
         else:
             desired_orientation = self.robot._orientation
-        # Tourner si nécessaire
+        # Turn
         if self.robot._orientation != desired_orientation:
             # Choisir le sens de rotation le plus court
             diff = (desired_orientation - self.robot._orientation) % 360
@@ -99,7 +104,7 @@ class Action:
                 self.robot._orientation = (self.robot._orientation - 90) % 360
             else:
                 self.robot._orientation = desired_orientation
-        # Avancer d’une case dans la direction actuelle
+        # Move forward in the actual direction
         if self.robot._orientation == 0:
             self.robot._pos["x"] += 1
         elif self.robot._orientation == 180:
@@ -108,12 +113,12 @@ class Action:
             self.robot._pos["y"] -= 1
         elif self.robot._orientation == 270:
             self.robot._pos["y"] += 1
-        # Clamp pour rester dans la grille
+        # Stay in the grid (but shouldn't be a problem)
         width, height = self.environment["map_size"]
         self.robot._pos["x"] = max(0, min(self.robot._pos["x"], width-1))
         self.robot._pos["y"] = max(0, min(self.robot._pos["y"], height-1))
 
-        # Batterie : 1% / 5 sec → durée 1 sec par pas
+        # Batterie : -1% / 2 sec → 1sec / case
         self.robot.set_battery(max(0, self.robot.get_battery() - 1.0 / 2.0))
         print(f"batterie={self.robot.get_battery():.1f}%")
 

@@ -1,11 +1,21 @@
-# SPA Model
+# SPA Model - Léanne Henry - ISRLAB 2025/2026
 ## Quick description 
-Sense - Plan - Act d'un module mobile. Simulation d'un environnement dans lequel il ne peut se déplacer que case par case (pas en diagonale). L'environnement comporte des obstacles que le robot ne connait pas au départ et qu'il doit "détecter" grace à ses capteurs. Si un obstacle est sur une case à coté d'un capteur (lidar), ce dernier le détecte et l'indique au robot. De cette façon il ne cherche pas à traverser l'obstacle. 
+Sense–Plan–Act model for a mobile module. 
 
-Son objectif est d'explorer 80% de la zone sans se décharger. Ensuite il reçoit des positions aléatoires auxquelles se déplacer pour finir son exploration. Il connaît toujours la position de sa zone de recharge. Une fois que la batterie est inférieure à 20% il plannifie un chemin jusqu'à sa zone de recharge et y reste jusqu'à la fin du chargement. 
+This project simulates an environment where the robot can only move from cell to cell (no diagonal movement).
+The environment contains unknown obstacles that the robot must detect using its sensors.
+If an obstacle is located in a cell adjacent to a sensor (lidar), the sensor detects it and informs the robot, so it avoids trying to move through the obstacle.
+
+The robot’s goal is to explore 80% of the area without running out of battery.After that, it receives random target positions to reach in order to complete its exploration. It always knows the position of its charging zone. Once the battery level drops below 20%, it plans a path back to the charging zone and stays there until it is fully recharged.
+
+[WARNING] The area is supposed to be a square -- you can change the dimension but not the shape
 
 
 ## How to use 
-```pip install requirements.txt```
+Install the dependencies listed in requirements.txt :
 
-``python -m SPA_model.main``
+``pip install -r requirements.txt``
+
+Then, from the parent directory of SPA_model, run :
+
+```python -m SPA_model.main```

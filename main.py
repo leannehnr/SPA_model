@@ -1,9 +1,9 @@
 '''
-SENSE PLAN ACT Simple Python <implementation
+SENSE PLAN ACT Simple Python implementation
 using 00P-classes 
 '''
-import pygame
 import sys
+import pygame
 from .robot import robot as r
 from .sense import sense as s
 from .plan import plan as p
@@ -41,7 +41,7 @@ def draw_obs(pos):
 
 def main():
     turtle = r.Robot("Turtle")
-    environment = {"map_size": (10,10), "recharge_zone": (4,5), "obstacles": {(2, 3),(5, 5), (7, 1),(4, 8)}}
+    environment = {"map_size": (GRID_WIDTH,GRID_HEIGHT), "recharge_zone": (4,5), "obstacles": {(2, 3),(5, 5), (5, 8),(4, 9)}}
     sense = s.Sense(turtle, environment)
     planner = p.Plan(turtle, environment)
     actuator = a.Action(turtle, environment)
