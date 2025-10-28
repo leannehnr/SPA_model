@@ -1,5 +1,6 @@
 # SPA Model - Léanne Henry - ISRLAB 2025/2026
-## Quick description 
+## Quick description (V1)
+--> robot / sense / plan / act folders + main.py
 Sense–Plan–Act model for a mobile module. 
 
 This project simulates an environment where the robot can only move from cell to cell (no diagonal movement).
@@ -16,6 +17,6 @@ Install the dependencies listed in requirements.txt :
 
 ``pip install -r requirements.txt``
 
-Then, from the parent directory of SPA_model, run :
+Then, from the directory SPA_model, run :
 
-```python -m SPA_model.main```
+```python -m homework1.main```
