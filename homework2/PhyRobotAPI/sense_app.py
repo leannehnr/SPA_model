@@ -32,7 +32,7 @@ class PhySensor:
         """
         pass
 
-    def __repr__(self) -> str: 
+    def __repr__(self) -> str:
         return f"Sensor : {self._id}, range {self._range}"
     
 
